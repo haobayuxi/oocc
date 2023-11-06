@@ -139,6 +139,7 @@ class DTXContext {
       log_base_[node_id] = offset;
       rc = node_.get_root_entry(node_id, 0, offset);
       assert(!rc);
+      SDS_INFO("offset at  %ld", offset);
       table_id_t nr_tables = offset;
       HashMeta *hash_meta = (HashMeta *)node_.alloc_cache(sizeof(HashMeta));
       assert(hash_meta);
