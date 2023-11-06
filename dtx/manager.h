@@ -93,6 +93,7 @@ class DTXContext {
   AddrCache *GetAddrCache() { return &tl_data_[GetThreadID()].addr_cache; }
 
   node_id_t GetPrimaryNodeID(table_id_t table_id) {
+    return 0;
     auto search = primary_table_nodes.find(table_id);
     assert(search != primary_table_nodes.end());
     return search->second;
