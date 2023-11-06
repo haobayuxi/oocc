@@ -322,7 +322,7 @@ class Initiator {
   size_t cache_size_;
   std::atomic<size_t> cache_offset_;
   alignas(128) ThreadLocal tl_data_[kMaxThreads];
-  std::HashMap
+  //   std::HashMap
 };
 }  // namespace sds
 
