@@ -71,6 +71,8 @@ std::string dump_file_path;
 std::string dump_prefix;
 std::string type;
 
+int dtx_txn_sys;
+
 std::atomic<uint64_t> total_attempts(0);
 volatile int stop_signal = 0;
 pthread_barrier_t barrier;
@@ -78,7 +80,6 @@ Initiator *node[32];
 
 void *test_thread_func(void *arg) {
   int thread_id = (int)(uintptr_t)arg;
-  int dtx_txn_sys = (int)(uintptr_t)arg;
   auto ctx = node[thread_id % nr_nodes];
   BindCore(thread_id);
   size_t kSegmentSize = MEM_POOL_SIZE / nr_threads;
@@ -275,7 +276,7 @@ int main(int argc, char **argv) {
   JsonConfig config = JsonConfig::load_file(
       env_path ? env_path : ROOT_DIR "/config/test_rdma.json");
   qp_num = (int)config.get("qp_num").get_int64();
-  int txn_sys = (int)config.get("txn_sys").get_int64();
+  dtx_txn_sys = (int)config.get("txn_sys").get_int64();
   if (getenv("QP_NUM")) {
     qp_num = atoi(getenv("QP_NUM"));
   }
