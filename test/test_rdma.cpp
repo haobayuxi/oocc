@@ -110,8 +110,8 @@ void *test_thread_func(void *arg, void *txn_sys) {
         }
         // read data
         GlobalAddress data_remote_addr(attempts % connections, offset + 8);
-        int rc = ctx->read(buf + align_size * tokens, data_remote_addr,
-                           block_size, Initiator::Option::PostRequest);
+        rc = ctx->read(buf + align_size * tokens, data_remote_addr, block_size,
+                       Initiator::Option::PostRequest);
         assert(!rc);
         --tokens;
         while (tokens == 0) {
@@ -135,8 +135,8 @@ void *test_thread_func(void *arg, void *txn_sys) {
         }
         // read data
         GlobalAddress data_remote_addr(attempts % connections, offset + 8);
-        int rc = ctx->read(buf + align_size * tokens, data_remote_addr,
-                           block_size, Initiator::Option::PostRequest);
+        rc = ctx->read(buf + align_size * tokens, data_remote_addr, block_size,
+                       Initiator::Option::PostRequest);
         assert(!rc);
         --tokens;
         while (tokens == 0) {
