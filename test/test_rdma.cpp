@@ -39,12 +39,11 @@
 using namespace sds;
 
 static const size_t MEM_POOL_SIZE = (1ull << 30);
-int txn_sys;
 
 enum DTX_SYS : int {
   OOCC = 0,
   DrTMH = 1,
-  DSLR = 2,
+  DLMR = 2,
   OCC = 3,
 };
 
@@ -79,6 +78,7 @@ Initiator *node[32];
 
 void *test_thread_func(void *arg) {
   int thread_id = (int)(uintptr_t)arg;
+  int dtx_txn_sys = (int)(uintptr_t)arg;
   auto ctx = node[thread_id % nr_nodes];
   BindCore(thread_id);
   size_t kSegmentSize = MEM_POOL_SIZE / nr_threads;
@@ -94,9 +94,8 @@ void *test_thread_func(void *arg) {
   if (type == "read") {
     while (!stop_signal) {
       attempts++;
-      if (txn_sys == DTX_SYS::DSLR) {
+      if (dtx_txn_sys == DTX_SYS::DLMR) {
         //  a faa and a read
-        // SDS_INFO("test DLMR");
         uint64_t offset = thread_id * kSegmentSize + block_size * (dist(rnd));
         GlobalAddress remote_addr(attempts % connections, offset);
         // cas
@@ -110,7 +109,8 @@ void *test_thread_func(void *arg) {
           tokens = depth;
         }
         // read data
-        rc = ctx->read(buf + align_size * tokens, remote_addr, block_size,
+        GlobalAddress data_remote_addr(attempts % connections, offset + 8);
+        rc = ctx->read(buf + align_size * tokens, data_remote_addr, block_size,
                        Initiator::Option::PostRequest);
         assert(!rc);
         --tokens;
@@ -119,9 +119,8 @@ void *test_thread_func(void *arg) {
           assert(!rc);
           tokens = depth;
         }
-      } else if (txn_sys == DTX_SYS::DrTMH) {
+      } else if (dtx_txn_sys == DTX_SYS::DrTMH) {
         // a cas and a read
-        // SDS_INFO("test DrTM");
         uint64_t offset = thread_id * kSegmentSize + block_size * (dist(rnd));
         GlobalAddress remote_addr(attempts % connections, offset);
         // cas
@@ -135,7 +134,8 @@ void *test_thread_func(void *arg) {
           tokens = depth;
         }
         // read data
-        rc = ctx->read(buf + align_size * tokens, remote_addr, block_size,
+        GlobalAddress data_remote_addr(attempts % connections, offset + 8);
+        rc = ctx->read(buf + align_size * tokens, data_remote_addr, block_size,
                        Initiator::Option::PostRequest);
         assert(!rc);
         --tokens;
@@ -144,9 +144,8 @@ void *test_thread_func(void *arg) {
           assert(!rc);
           tokens = depth;
         }
-      } else if (txn_sys == DTX_SYS::OOCC) {
+      } else if (dtx_txn_sys == DTX_SYS::OOCC) {
         // simple read
-        // SDS_INFO("test OOCC");
         uint64_t offset = thread_id * kSegmentSize + block_size * (dist(rnd));
         GlobalAddress remote_addr(attempts % connections, offset);
         int rc = ctx->read(buf + align_size * tokens, remote_addr, block_size,
@@ -159,26 +158,6 @@ void *test_thread_func(void *arg) {
           tokens = depth;
         }
       } else {
-        uint64_t offset = thread_id * kSegmentSize + block_size * (dist(rnd));
-        GlobalAddress remote_addr(attempts % connections, offset);
-        int rc = ctx->read(buf + align_size * tokens, remote_addr, block_size,
-                           Initiator::Option::PostRequest);
-        assert(!rc);
-        --tokens;
-        while (tokens == 0) {
-          rc = ctx->sync();
-          assert(!rc);
-          tokens = depth;
-        }
-        rc = ctx->read(buf + align_size * tokens, remote_addr, block_size,
-                       Initiator::Option::PostRequest);
-        assert(!rc);
-        --tokens;
-        while (tokens == 0) {
-          rc = ctx->sync();
-          assert(!rc);
-          tokens = depth;
-        }
       }
     }
   } else if (type == "write") {
@@ -241,7 +220,8 @@ void report(uint64_t elapsed_time) {
   fclose(fout);
 }
 
-void run_client(const std::vector<std::string> &server_list, uint16_t port) {
+void run_client(const std::vector<std::string> &server_list, uint16_t port,
+                int txn_sys) {
   struct timeval start_tv, end_tv;
   pthread_t tid[kMaxThreads];
   double elapsed_time;
@@ -267,7 +247,7 @@ void run_client(const std::vector<std::string> &server_list, uint16_t port) {
                  (end_tv.tv_usec - start_tv.tv_usec) / 1000.0;
   pthread_barrier_init(&barrier, NULL, nr_threads + 1);
   for (long i = 0; i < nr_threads; ++i) {
-    pthread_create(&tid[i], NULL, test_thread_func, (void *)i);
+    pthread_create(&tid[i], NULL, test_thread_func, (void *)i, (void *txn_sys));
   }
   pthread_barrier_wait(&barrier);
   gettimeofday(&start_tv, NULL);
@@ -296,16 +276,7 @@ int main(int argc, char **argv) {
   JsonConfig config = JsonConfig::load_file(
       env_path ? env_path : ROOT_DIR "/config/test_rdma.json");
   qp_num = (int)config.get("qp_num").get_int64();
-  txn_sys = (int)config.get("txn_sys").get_int64();
-  if (txn_sys == DTX_SYS::DrTMH) {
-    SDS_INFO("running drtm");
-  } else if (txn_sys == DTX_SYS::DSLR) {
-    SDS_INFO("running dslr");
-  } else if (txn_sys == DTX_SYS::OOCC) {
-    SDS_INFO("running oocc");
-  } else {
-    SDS_INFO("running occ");
-  }
+  int txn_sys = (int)config.get("txn_sys").get_int64();
   if (getenv("QP_NUM")) {
     qp_num = atoi(getenv("QP_NUM"));
   }
@@ -340,7 +311,7 @@ int main(int argc, char **argv) {
       server_list.push_back(servers.get(i).get_str());
     }
     assert(!server_list.empty());
-    run_client(server_list, port);
+    run_client(server_list, port, txn_sys);
   }
   return 0;
 }
