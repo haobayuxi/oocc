@@ -220,8 +220,7 @@ void report(uint64_t elapsed_time) {
   fclose(fout);
 }
 
-void run_client(const std::vector<std::string> &server_list, uint16_t port,
-                int txn_sys) {
+void run_client(const std::vector<std::string> &server_list, uint16_t port) {
   struct timeval start_tv, end_tv;
   pthread_t tid[kMaxThreads];
   double elapsed_time;
@@ -247,7 +246,7 @@ void run_client(const std::vector<std::string> &server_list, uint16_t port,
                  (end_tv.tv_usec - start_tv.tv_usec) / 1000.0;
   pthread_barrier_init(&barrier, NULL, nr_threads + 1);
   for (long i = 0; i < nr_threads; ++i) {
-    pthread_create(&tid[i], NULL, test_thread_func, (void *)i, (void *txn_sys));
+    pthread_create(&tid[i], NULL, test_thread_func, (void *)i);
   }
   pthread_barrier_wait(&barrier);
   gettimeofday(&start_tv, NULL);
@@ -311,7 +310,7 @@ int main(int argc, char **argv) {
       server_list.push_back(servers.get(i).get_str());
     }
     assert(!server_list.empty());
-    run_client(server_list, port, txn_sys);
+    run_client(server_list, port);
   }
   return 0;
 }
