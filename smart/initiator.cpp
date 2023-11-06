@@ -410,12 +410,11 @@ int Initiator::sync() {
   //     while (state.ack_req[id] < post_req[id]) {
   if (TaskPool::IsEnabled()) {
     WaitTask();
+  } else {
+    if (poll_once(0) < 0) {
+      return -1;
+    }
   }
-  //       else {
-  //         if (poll_once(id) < 0) {
-  //           return -1;
-  //         }
-  //       }
   //     }
   //   }
   return 0;
