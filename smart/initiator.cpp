@@ -51,7 +51,7 @@ Initiator::Initiator() : tuner_running_(false), cache_offset_(0) {
     tl.ack_req_estimation = 0;
     tl.task_lock = false;
     for (int i = 0; i < kMaxTasksPerThread; i++) {
-      tl.qp_state.post_req_snapshot[i].resize(config.max_nodes, 0);
+      tl.post_req_snapshot[i].resize(config.max_nodes, 0);
     }
   }
 
