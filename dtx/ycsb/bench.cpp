@@ -17,6 +17,12 @@ pthread_barrier_t barrier;
 uint64_t threads;
 uint64_t coroutines;
 
+int data_item_size;
+int write_ratio;
+bool is_skewed;
+int lease;
+int txn_sys;
+
 std::atomic<uint64_t> attempts(0);
 std::atomic<uint64_t> commits(0);
 double *timer;
@@ -24,302 +30,42 @@ std::atomic<uint64_t> tx_id_generator(0);
 
 thread_local size_t ATTEMPTED_NUM;
 thread_local uint64_t seed;
-thread_local TATP *tatp_client;
-thread_local TATPTxType *workgen_arr;
+thread_local YCSB *ycsb_client;
+thread_local bool *workgen_arr;
 
 thread_local uint64_t rdma_cnt;
 std::atomic<uint64_t> rdma_cnt_sum(0);
 
-bool TxGetSubsciberData(tx_id_t tx_id, DTX *dtx) {
+bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
   dtx->TxBegin(tx_id);
-  // Build key for the database record
-  tatp_sub_key_t sub_key;
-  sub_key.s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  // This empty data sub_obj will be filled by RDMA reading from remote when
-  // running transaction
-  auto sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSubscriberTable, sub_key.item_key);
-  // Add r/w set and execute transaction
-  dtx->AddToReadOnlySet(sub_obj);
+  bool read_only = true;
+  auto write = FastRand(&seed) % 1000;
+  if (write < write_ratio) {
+    read_only = false;
+  }
+  for (int i = 0; i < data_item_size; i++) {
+    micro_key_t micro_key;
+    if (is_skewed) {
+      micro_key.micro_id = ycsb_client->next();
+    } else {
+      // micro_key.micro_id = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM -
+      // 1));
+      micro_key.micro_id = tx_id % TOTAL_KEYS_NUM;
+      // micro_key.micro_id = 100;
+    }
+
+    DataItemPtr micro_obj =
+        std::make_shared<DataItem>(MICRO_TABLE_ID, micro_key.item_key);
+    if (read_only || i % 2 == 1) {
+      dtx->AddToReadOnlySet(micro_obj);
+
+      // SDS_INFO("txn read key = %ld", micro_key.micro_id);
+    } else {
+      dtx->AddToReadWriteSet(micro_obj);
+    }
+  }
   if (!dtx->TxExe()) return false;
-  // Get value
-  auto *value = (tatp_sub_val_t *)(sub_obj->value);
-  assert(value->msc_location == tatp_sub_msc_location_magic);
   // Commit transaction
-  bool commit_status = dtx->TxCommit();
-  return commit_status;
-}
-
-bool TxGetNewDestination(tx_id_t tx_id, DTX *dtx) {
-  dtx->TxBegin(tx_id);
-  uint32_t s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  uint8_t sf_type = (FastRand(&seed) % 4) + 1;
-  uint8_t start_time = (FastRand(&seed) % 3) * 8;
-  uint8_t end_time = (FastRand(&seed) % 24) * 1;
-  unsigned cf_to_fetch = (start_time / 8) + 1;
-  assert(cf_to_fetch >= 1 && cf_to_fetch <= 3);
-  /* Fetch a single special facility record */
-  tatp_specfac_key_t specfac_key;
-  specfac_key.s_id = s_id;
-  specfac_key.sf_type = sf_type;
-  auto specfac_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSpecialFacilityTable, specfac_key.item_key);
-  dtx->AddToReadOnlySet(specfac_obj);
-  if (!dtx->TxExe()) return false;
-  if (specfac_obj->value_size == 0) {
-    dtx->TxAbortReadOnly();
-    return false;
-  }
-
-  // Need to wait for reading specfac_obj from remote
-  auto *specfac_val = (tatp_specfac_val_t *)(specfac_obj->value);
-  assert(specfac_val->data_b[0] == tatp_specfac_data_b0_magic);
-  if (specfac_val->is_active == 0) {
-    // is_active is randomly generated at pm node side
-    dtx->TxAbortReadOnly();
-    return false;
-  }
-
-  /* Fetch possibly multiple call forwarding records. */
-  DataItemPtr callfwd_obj[3];
-  tatp_callfwd_key_t callfwd_key[3];
-
-  for (unsigned i = 0; i < cf_to_fetch; i++) {
-    callfwd_key[i].s_id = s_id;
-    callfwd_key[i].sf_type = sf_type;
-    callfwd_key[i].start_time = (i * 8);
-    callfwd_obj[i] = std::make_shared<DataItem>(
-        (table_id_t)TATPTableType::kCallForwardingTable,
-        callfwd_key[i].item_key);
-    dtx->AddToReadOnlySet(callfwd_obj[i]);
-  }
-  if (!dtx->TxExe()) return false;
-
-  bool callfwd_success = false;
-  for (unsigned i = 0; i < cf_to_fetch; i++) {
-    if (callfwd_obj[i]->value_size == 0) {
-      continue;
-    }
-
-    auto *callfwd_val = (tatp_callfwd_val_t *)(callfwd_obj[i]->value);
-    assert(callfwd_val->numberx[0] == tatp_callfwd_numberx0_magic);
-    if (callfwd_key[i].start_time <= start_time &&
-        end_time < callfwd_val->end_time) {
-      /* All conditions satisfied */
-      callfwd_success = true;
-    }
-  }
-
-  if (callfwd_success) {
-    bool commit_status = dtx->TxCommit();
-    return commit_status;
-  } else {
-    dtx->TxAbortReadOnly();
-    return false;
-  }
-}
-
-bool TxGetAccessData(tx_id_t tx_id, DTX *dtx) {
-  dtx->TxBegin(tx_id);
-  tatp_accinf_key_t key;
-  key.s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  key.ai_type = (FastRand(&seed) & 3) + 1;
-  auto acc_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kAccessInfoTable, key.item_key);
-  dtx->AddToReadOnlySet(acc_obj);
-  if (!dtx->TxExe()) return false;
-  if (acc_obj->value_size > 0) {
-    /* The key was found */
-    auto *value = (tatp_accinf_val_t *)(acc_obj->value);
-    assert(value->data1 == tatp_accinf_data1_magic);
-    bool commit_status = dtx->TxCommit();
-    return commit_status;
-  } else {
-    /* Key not found */
-    dtx->TxAbortReadOnly();
-    return false;
-  }
-}
-
-bool TxUpdateSubscriberData(tx_id_t tx_id, DTX *dtx) {
-  dtx->TxBegin(tx_id);
-  uint32_t s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  uint8_t sf_type = (FastRand(&seed) % 4) + 1;
-  /* Read + lock the subscriber record */
-  tatp_sub_key_t sub_key;
-  sub_key.s_id = s_id;
-  auto sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSubscriberTable, sub_key.item_key);
-  dtx->AddToReadWriteSet(sub_obj);
-  /* Read + lock the special facilty record */
-  tatp_specfac_key_t specfac_key;
-  specfac_key.s_id = s_id;
-  specfac_key.sf_type = sf_type;
-
-  auto specfac_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSpecialFacilityTable, specfac_key.item_key);
-  dtx->AddToReadWriteSet(specfac_obj);
-  if (!dtx->TxExe()) return false;
-
-  /* If we are here, execution succeeded and we have locks */
-  auto *sub_val = (tatp_sub_val_t *)(sub_obj->value);
-  assert(sub_val->msc_location == tatp_sub_msc_location_magic);
-  sub_val->bits = FastRand(&seed); /* Update */
-  auto *specfac_val = (tatp_specfac_val_t *)(specfac_obj->value);
-  assert(specfac_val->data_b[0] == tatp_specfac_data_b0_magic);
-  specfac_val->data_a = FastRand(&seed); /* Update */
-  bool commit_status = dtx->TxCommit();
-  return commit_status;
-}
-
-// 1. Read a SECONDARY_SUBSCRIBER row
-// 2. Update a SUBSCRIBER row
-bool TxUpdateLocation(tx_id_t tx_id, DTX *dtx) {
-  dtx->TxBegin(tx_id);
-
-  uint32_t s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  uint32_t vlr_location = FastRand(&seed);
-
-  /* Read the secondary subscriber record */
-  tatp_sec_sub_key_t sec_sub_key;
-  sec_sub_key.sub_number =
-      tatp_client->FastGetSubscribeNumFromSubscribeID(s_id);
-
-  auto sec_sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSecSubscriberTable, sec_sub_key.item_key);
-
-  dtx->AddToReadOnlySet(sec_sub_obj);
-  if (!dtx->TxExe()) return false;
-
-  auto *sec_sub_val = (tatp_sec_sub_val_t *)(sec_sub_obj->value);
-  assert(sec_sub_val->magic == tatp_sec_sub_magic);
-  assert(sec_sub_val->s_id == s_id);
-  tatp_sub_key_t sub_key;
-  sub_key.s_id = sec_sub_val->s_id;
-
-  auto sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSubscriberTable, sub_key.item_key);
-
-  dtx->AddToReadWriteSet(sub_obj);
-  if (!dtx->TxExe()) return false;
-
-  auto *sub_val = (tatp_sub_val_t *)(sub_obj->value);
-  assert(sub_val->msc_location == tatp_sub_msc_location_magic);
-  sub_val->vlr_location = vlr_location; /* Update */
-
-  bool commit_status = dtx->TxCommit();
-  return commit_status;
-}
-
-bool TxInsertCallForwarding(tx_id_t tx_id, DTX *dtx) {
-  // RDMA_LOG(DBG) << "coro " << dtx->coro_id << " executes
-  // TxInsertCallForwarding, tx_id=" << tx_id;
-  dtx->TxBegin(tx_id);
-
-  uint32_t s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  uint8_t sf_type = (FastRand(&seed) % 4) + 1;
-  uint8_t start_time = (FastRand(&seed) % 3) * 8;
-  uint8_t end_time = (FastRand(&seed) % 24) * 1;
-
-  // Read the secondary subscriber record
-  tatp_sec_sub_key_t sec_sub_key;
-  sec_sub_key.sub_number =
-      tatp_client->FastGetSubscribeNumFromSubscribeID(s_id);
-
-  auto sec_sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSecSubscriberTable, sec_sub_key.item_key);
-
-  dtx->AddToReadOnlySet(sec_sub_obj);
-  if (!dtx->TxExe()) return false;
-
-  auto *sec_sub_val = (tatp_sec_sub_val_t *)(sec_sub_obj->value);
-  assert(sec_sub_val->magic == tatp_sec_sub_magic);
-  assert(sec_sub_val->s_id == s_id);
-
-  // Read the Special Facility record
-  tatp_specfac_key_t specfac_key;
-  specfac_key.s_id = s_id;
-  specfac_key.sf_type = sf_type;
-
-  auto specfac_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSpecialFacilityTable, specfac_key.item_key);
-
-  dtx->AddToReadOnlySet(specfac_obj);
-  if (!dtx->TxExe()) return false;
-
-  /* The Special Facility record exists only 62.5% of the time */
-  if (specfac_obj->value_size == 0) {
-    dtx->TxAbortReadOnly();
-    return false;
-  }
-
-  /* If we are here, the Special Facility record exists. */
-  auto *specfac_val = (tatp_specfac_val_t *)(specfac_obj->value);
-  assert(specfac_val->data_b[0] == tatp_specfac_data_b0_magic);
-
-  // Lock the Call Forwarding record
-  tatp_callfwd_key_t callfwd_key;
-  callfwd_key.s_id = s_id;
-  callfwd_key.sf_type = sf_type;
-  callfwd_key.start_time = start_time;
-
-  auto callfwd_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kCallForwardingTable,
-      sizeof(tatp_callfwd_val_t), callfwd_key.item_key,
-      tx_id,  // Using tx_id as key's version
-      1);
-
-  // Handle Insert. Only read the remote offset of callfwd_obj
-  dtx->AddToReadWriteSet(callfwd_obj);
-  if (!dtx->TxExe()) return false;
-
-  // Fill callfwd_val by user
-  auto *callfwd_val = (tatp_callfwd_val_t *)(callfwd_obj->value);
-  callfwd_val->numberx[0] = tatp_callfwd_numberx0_magic;
-  callfwd_val->end_time = end_time;
-
-  bool commit_status = dtx->TxCommit();
-  return commit_status;
-}
-
-// 1. Read a SECONDARY_SUBSCRIBER row
-// 2. Delete a CALL_FORWARDING row
-bool TxDeleteCallForwarding(tx_id_t tx_id, DTX *dtx) {
-  // RDMA_LOG(DBG) << "coro " << dtx->coro_id << " executes
-  // TxDeleteCallForwarding, tx_id=" << tx_id;
-  dtx->TxBegin(tx_id);
-
-  uint32_t s_id = tatp_client->GetNonUniformRandomSubscriber(&seed);
-  uint8_t sf_type = (FastRand(&seed) % 4) + 1;
-  uint8_t start_time = (FastRand(&seed) % 3) * 8;
-
-  // Read the secondary subscriber record
-  tatp_sec_sub_key_t sec_sub_key;
-  sec_sub_key.sub_number =
-      tatp_client->FastGetSubscribeNumFromSubscribeID(s_id);
-  auto sec_sub_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kSecSubscriberTable, sec_sub_key.item_key);
-  dtx->AddToReadOnlySet(sec_sub_obj);
-  if (!dtx->TxExe()) return false;
-
-  auto *sec_sub_val = (tatp_sec_sub_val_t *)(sec_sub_obj->value);
-  assert(sec_sub_val->magic == tatp_sec_sub_magic);
-  assert(sec_sub_val->s_id == s_id);
-
-  // Delete the Call Forwarding record if it exists
-  tatp_callfwd_key_t callfwd_key;
-  callfwd_key.s_id = s_id;
-  callfwd_key.sf_type = sf_type;
-  callfwd_key.start_time = start_time;
-
-  auto callfwd_obj = std::make_shared<DataItem>(
-      (table_id_t)TATPTableType::kCallForwardingTable, callfwd_key.item_key);
-
-  dtx->AddToReadWriteSet(callfwd_obj);
-  if (!dtx->TxExe()) return false;
-  auto *callfwd_val = (tatp_callfwd_val_t *)(callfwd_obj->value);
-  assert(callfwd_val->numberx[0] == tatp_callfwd_numberx0_magic);
-  callfwd_obj->valid = 0;
   bool commit_status = dtx->TxCommit();
   return commit_status;
 }
@@ -327,37 +73,11 @@ bool TxDeleteCallForwarding(tx_id_t tx_id, DTX *dtx) {
 thread_local int running_tasks;
 
 void WarmUp(DTXContext *context) {
-  DTX *dtx = new DTX(context);
+  DTX *dtx = new DTX(context, txn_sys, lease);
   bool tx_committed = false;
   for (int i = 0; i < 50000; ++i) {
-    TATPTxType tx_type = workgen_arr[FastRand(&seed) % 100];
-    uint64_t iter = ++tx_id_generator;  // Global atomic transaction id
-    switch (tx_type) {
-      case TATPTxType::kGetSubsciberData:
-        tx_committed = TxGetSubsciberData(iter, dtx);
-        break;
-      case TATPTxType::kGetNewDestination:
-        tx_committed = TxGetNewDestination(iter, dtx);
-        break;
-      case TATPTxType::kGetAccessData:
-        tx_committed = TxGetAccessData(iter, dtx);
-        break;
-      case TATPTxType::kUpdateSubscriberData:
-        tx_committed = TxUpdateSubscriberData(iter, dtx);
-        break;
-      case TATPTxType::kUpdateLocation:
-        tx_committed = TxUpdateLocation(iter, dtx);
-        break;
-      case TATPTxType::kInsertCallForwarding:
-        tx_committed = TxInsertCallForwarding(iter, dtx);
-        break;
-      case TATPTxType::kDeleteCallForwarding:
-        tx_committed = TxDeleteCallForwarding(iter, dtx);
-        break;
-      default:
-        printf("Unexpected transaction type %d\n", static_cast<int>(tx_type));
-        abort();
-    }
+    uint64_t iter = ++tx_id_generator;
+    TxYCSB(iter, dtx);
   }
   delete dtx;
 }
@@ -375,7 +95,7 @@ static void IdleExecution() {
 }
 
 void RunTx(DTXContext *context) {
-  DTX *dtx = new DTX(context);
+  DTX *dtx = new DTX(context, txn_sys, lease);
   struct timespec tx_start_time, tx_end_time;
   bool tx_committed = false;
   uint64_t attempt_tx = 0;
@@ -383,78 +103,13 @@ void RunTx(DTXContext *context) {
   int timer_idx = GetThreadID() * coroutines + GetTaskID();
   // Running transactions
   while (true) {
-    TATPTxType tx_type = workgen_arr[FastRand(&seed) % 100];
     uint64_t iter = ++tx_id_generator;  // Global atomic transaction id
     attempt_tx++;
     clock_gettime(CLOCK_REALTIME, &tx_start_time);
 #ifdef ABORT_DISCARD
-    switch (tx_type) {
-      case TATPTxType::kGetSubsciberData:
-        do {
-          tx_committed = TxGetSubsciberData(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kGetNewDestination:
-        do {
-          tx_committed = TxGetNewDestination(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kGetAccessData:
-        do {
-          tx_committed = TxGetAccessData(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kUpdateSubscriberData:
-        do {
-          tx_committed = TxUpdateSubscriberData(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kUpdateLocation:
-        do {
-          tx_committed = TxUpdateLocation(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kInsertCallForwarding:
-        do {
-          tx_committed = TxInsertCallForwarding(iter, dtx);
-        } while (!tx_committed);
-        break;
-      case TATPTxType::kDeleteCallForwarding:
-        do {
-          tx_committed = TxDeleteCallForwarding(iter, dtx);
-        } while (!tx_committed);
-        break;
-      default:
-        printf("Unexpected transaction type %d\n", static_cast<int>(tx_type));
-        abort();
-    }
+
 #else
-    switch (tx_type) {
-      case TATPTxType::kGetSubsciberData:
-        tx_committed = TxGetSubsciberData(iter, dtx);
-        break;
-      case TATPTxType::kGetNewDestination:
-        tx_committed = TxGetNewDestination(iter, dtx);
-        break;
-      case TATPTxType::kGetAccessData:
-        tx_committed = TxGetAccessData(iter, dtx);
-        break;
-      case TATPTxType::kUpdateSubscriberData:
-        tx_committed = TxUpdateSubscriberData(iter, dtx);
-        break;
-      case TATPTxType::kUpdateLocation:
-        tx_committed = TxUpdateLocation(iter, dtx);
-        break;
-      case TATPTxType::kInsertCallForwarding:
-        tx_committed = TxInsertCallForwarding(iter, dtx);
-        break;
-      case TATPTxType::kDeleteCallForwarding:
-        tx_committed = TxDeleteCallForwarding(iter, dtx);
-        break;
-      default:
-        printf("Unexpected transaction type %d\n", static_cast<int>(tx_type));
-        abort();
-    }
+    tx_committed = TxYCSB(iter, dtx);
 #endif
     // Stat after one transaction finishes
     if (tx_committed) {
@@ -478,26 +133,15 @@ void RunTx(DTXContext *context) {
   delete dtx;
 }
 
-void execute_thread(int id, DTXContext *context) {
+void execute_thread(int id, DTXContext *context, double theta) {
   BindCore(id);
-#if 0
-    assert(coroutines == 1);
-    ATTEMPTED_NUM = kMaxTransactions / threads;
-    seed = rdtsc() * kMaxThreads + id;
-    tatp_client = new TATP();
-    workgen_arr = tatp_client->CreateWorkgenArray();
-    pthread_barrier_wait(&barrier);
-    RunTx(manager);
-    pthread_barrier_wait(&barrier);
-    rdma_cnt_sum += rdma_cnt;
-#endif
+
   ATTEMPTED_NUM = kMaxTransactions / threads / coroutines;
   auto hostname = GetHostName();
   seed = MurmurHash3_x86_32(hostname.c_str(), hostname.length(), 0xcc9e2d51) *
              kMaxThreads +
          id;
-  tatp_client = new TATP();
-  workgen_arr = tatp_client->CreateWorkgenArray();
+  ycsb_client = new YCSB(theta, id);
   WarmUp(context);
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
@@ -563,7 +207,7 @@ void report(double elapsed_time, JsonConfig &config) {
   if (getenv("DUMP_PREFIX")) {
     dump_prefix = std::string(getenv("DUMP_PREFIX"));
   } else {
-    dump_prefix = "dtx-tatp";
+    dump_prefix = "dtx-ycsb";
   }
   SDS_INFO(
       "%s: #thread = %ld, #coro_per_thread = %ld, "
@@ -610,19 +254,30 @@ int main(int argc, char **argv) {
   }
   JsonConfig config = JsonConfig::load_file(path);
   kMaxTransactions = config.get("nr_transactions").get_uint64();
+  lease = config.get("lease").get_uint64();
+  txn_sys = config.get("txn_sys").get_uint64();
+  if (txn_sys == DTX_SYS::OOCC) {
+    SDS_INFO("running OOCC");
+  } else if (txn_sys == DTX_SYS::OCC) {
+    SDS_INFO("running OCC");
+  }
+  auto ycsb_config = config.get("ycsb");
+  double theta = ycsb_config.get("theta").get_double();
+  data_item_size = ycsb_config.get("data_item_size").get_uint64();
+  write_ratio = ycsb_config.get("write_ratio").get_uint64();
+  is_skewed = ycsb_config.get("is_skewed").get_bool();
   srand48(time(nullptr));
   threads = argc < 2 ? 1 : atoi(argv[1]);
   coroutines = argc < 3 ? 1 : atoi(argv[2]);
   timer = new double[kMaxTransactions];
   DTXContext *context = new DTXContext(config, threads);
-  tatp_client = new TATP();
   timespec ts_begin, ts_end;
   pthread_barrier_init(&barrier, nullptr, threads + 1);
   std::vector<std::thread> workers;
   workers.resize(threads);
   synchronize_begin(context);
   for (int i = 0; i < threads; ++i) {
-    workers[i] = std::thread(execute_thread, i, context);
+    workers[i] = std::thread(execute_thread, i, context, theta);
   }
   pthread_barrier_wait(&barrier);
   clock_gettime(CLOCK_MONOTONIC, &ts_begin);

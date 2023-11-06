@@ -9,7 +9,7 @@
 #include <mutex>
 
 #include "../dtx.h"
-#include "tatp.h"
+#include "tpcc.h"
 
 using namespace std::placeholders;
 
@@ -25,8 +25,8 @@ std::atomic<uint64_t> tx_id_generator(0);
 
 thread_local size_t ATTEMPTED_NUM;
 thread_local uint64_t seed;
-thread_local TATP *tatp_client;
-thread_local TATPTxType *workgen_arr;
+thread_local TPCC *tatp_client;
+thread_local TPCCTxType *workgen_arr;
 
 thread_local uint64_t rdma_cnt;
 std::atomic<uint64_t> rdma_cnt_sum(0);

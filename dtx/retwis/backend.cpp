@@ -3,15 +3,15 @@
 
 #include "../common.h"
 #include "../memstore.h"
-#include "smallbank.h"
 #include "smart/target.h"
 #include "smart/thread.h"
+#include "tatp.h"
 #include "util/json_config.h"
 
 using namespace sds;
 
 void setup(Target &target) {
-  static_assert(MAX_ITEM_SIZE == 8, "");
+  static_assert(MAX_ITEM_SIZE == 40, "");
   uint64_t hash_buf_size = 4ull * 1024 * 1024 * 1024;
 
   char *hash_buffer = (char *)target.alloc_chunk(hash_buf_size / kChunkSize);
@@ -29,9 +29,9 @@ void setup(Target &target) {
   MemStoreReserveParam mem_store_reserve_param(hash_reserve_buffer, 0,
                                                hash_buffer + hash_buf_size);
   std::vector<HashStore *> all_tables;
-  auto smallbank = new SmallBank(0.0, 0);
-  smallbank->LoadTable(&mem_store_alloc_param, &mem_store_reserve_param);
-  all_tables = smallbank->GetHashStore();
+  auto tatp = new TATP();
+  tatp->LoadTable(&mem_store_alloc_param, &mem_store_reserve_param);
+  all_tables = tatp->GetHashStore();
   auto *hash_meta = (HashMeta *)target.alloc_chunk(
       (all_tables.size() * sizeof(HashMeta)) / kChunkSize + 1);
   int i = 0;
@@ -51,7 +51,7 @@ void setup(Target &target) {
 }
 
 int main(int argc, char **argv) {
-  WritePidFile();
+  // WritePidFile();
   const char *path = ROOT_DIR "/config/backend.json";
   if (argc == 2) {
     path = argv[1];
