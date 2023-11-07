@@ -397,11 +397,6 @@ void Initiator::run_tasks() {
 }
 
 int Initiator::sync() {
-  auto &tl = tl_data_[GetThreadID()];
-  auto &state = tl.qp_state;
-  if (post_request()) {
-    return -1;
-  }
   // auto &post_req = tl.post_req_snapshot[GetTaskID()];
   //   //   post_req.resize(state.post_req.size());
   //   auto size = state.post_req.size();
@@ -410,10 +405,16 @@ int Initiator::sync() {
   //   }
   //   for (int id = 0; id < size; ++id) {
   //
-  auto req = state.post_req[0];
   if (TaskPool::IsEnabled()) {
     WaitTask();
   } else {
+    auto &tl = tl_data_[GetThreadID()];
+    auto &state = tl.qp_state;
+
+    auto req = state.post_req[0];
+    if (post_request()) {
+      return -1;
+    }
     while (state.ack_req[0] < req) {
       if (poll_once(0) < 0) {
         return -1;
