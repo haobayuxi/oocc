@@ -50,7 +50,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
     } else {
       // micro_key.micro_id = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM -
       // 1));
-      micro_key.micro_id = tx_id % TOTAL_KEYS_NUM - 1;
+      micro_key.micro_id = tx_id % (TOTAL_KEYS_NUM - 1);
       // micro_key.micro_id = 100;
     }
 
@@ -59,7 +59,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
     if (read_only || i % 2 == 1) {
       dtx->AddToReadOnlySet(micro_obj);
 
-      SDS_INFO("txn read key = %ld", micro_key.micro_id);
+      // SDS_INFO("txn read key = %ld", micro_key.micro_id);
     } else {
       dtx->AddToReadWriteSet(micro_obj);
     }
@@ -143,8 +143,6 @@ void execute_thread(int id, DTXContext *context, double theta) {
          id;
   ycsb_client = new YCSB(theta, id);
   WarmUp(context);
-  SDS_INFO("warm done");
-  return;
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
   running_tasks = coroutines;
