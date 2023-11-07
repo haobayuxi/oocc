@@ -345,6 +345,7 @@ int Initiator::post_request() {
   }
   req_buf.size = 0;
   state.per_coro_waiting[task_id] += 1;
+  SDS_INFO("waiting = %d", state.per_coro_waiting[task_id]);
   state.post_req[req_buf.mem_node_id] += wr_size;
   state.inflight_ack += wr_size;
   return 0;
@@ -466,8 +467,9 @@ int Initiator::poll_once(node_t mem_node_id, bool notify) {
       if (notify) {
         // auto &post_req = tl.post_req_snapshot[TASK_ID(wr_id)];
         auto task_id = TASK_ID(wr_id);
-        // SDS_INFO("task id = %d, task_id");
         state.per_coro_waiting[task_id] -= 1;
+
+        SDS_INFO("waiting to notify = %d", state.per_coro_waiting[task_id]);
         if (state.per_coro_waiting[task_id] == 0) {
           NotifyTask(task_id);
         }
