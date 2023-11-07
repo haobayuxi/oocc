@@ -142,6 +142,7 @@ void execute_thread(int id, DTXContext *context, double theta) {
              kMaxThreads +
          id;
   ycsb_client = new YCSB(theta, id);
+  SDS_INFO("warm up");
   WarmUp(context);
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
@@ -271,6 +272,7 @@ int main(int argc, char **argv) {
   coroutines = argc < 3 ? 1 : atoi(argv[2]);
   timer = new double[kMaxTransactions];
   DTXContext *context = new DTXContext(config, threads);
+  SDS_INFO("context init done");
   timespec ts_begin, ts_end;
   pthread_barrier_init(&barrier, nullptr, threads + 1);
   std::vector<std::thread> workers;

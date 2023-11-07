@@ -24,6 +24,8 @@
         "fstream": "cpp",
         "locale": "cpp",
         "streambuf": "cpp",
-        "__mutex_base": "cpp"
+        "__mutex_base": "cpp",
+        "__locale": "cpp",
+        "__string": "cpp"
     }
 }
