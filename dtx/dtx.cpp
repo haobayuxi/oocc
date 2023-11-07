@@ -187,8 +187,9 @@ bool DTX::IssueReadOnly(std::vector<DirectRead> &pending_direct_ro,
       HashMeta meta = GetPrimaryHashMetaWithTableID(it->table_id);
       uint64_t idx = MurmurHash64A(it->key, 0xdeadbeef) % meta.bucket_num;
       offset_t node_off = idx * meta.node_size + meta.base_off;
-      SDS_INFO("txnid = %ld,key = %ld, idx = %ld, tid=%ld", tx_id, it->key, idx,
-               GetThreadID());
+      // SDS_INFO("txnid = %ld,key = %ld, idx = %ld, tid=%ld", tx_id, it->key,
+      // idx,
+      //          GetThreadID());
 
       char *buf = AllocLocalBuffer(sizeof(HashNode));
       pending_hash_ro.emplace_back(HashRead{
