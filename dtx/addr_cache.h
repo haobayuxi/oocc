@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "common.h"
+#include "libcuckoo/cuckoohash_map.hh"
 
 const offset_t NOT_FOUND = -1;
 

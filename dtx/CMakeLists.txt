@@ -8,7 +8,7 @@ target_link_libraries(dtx_smallbank PUBLIC smart)
 
 add_library(dtx_ycsb dtx.cpp)
 target_compile_definitions(dtx_ycsb PUBLIC CONFIG_ITEM_SIZE=8)
-target_link_libraries(dtx_ycsb PUBLIC smart)
+target_link_libraries(dtx_ycsb PUBLIC smart libcuckoo)
 
 # add_subdirectory(smallbank)
 # add_subdirectory(tatp)
