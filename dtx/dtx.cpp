@@ -19,7 +19,7 @@ bool DTX::ExeRO() {
   }
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
   context->Sync();
-  sleep(2);
+  // sleep(2);
   std::list<HashRead> pending_next_hash_ro;
   if (!CheckDirectRO(pending_direct_ro, pending_next_hash_ro)) return false;
   if (!CheckHashRO(pending_hash_ro, pending_next_hash_ro)) return false;
