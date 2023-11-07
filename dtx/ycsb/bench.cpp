@@ -50,7 +50,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
     } else {
       // micro_key.micro_id = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM -
       // 1));
-      micro_key.micro_id = tx_id % TOTAL_KEYS_NUM;
+      micro_key.micro_id = tx_id % TOTAL_KEYS_NUM - 1;
       // micro_key.micro_id = 100;
     }
 
