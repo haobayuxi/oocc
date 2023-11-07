@@ -26,6 +26,7 @@
         "streambuf": "cpp",
         "__mutex_base": "cpp",
         "__locale": "cpp",
-        "__string": "cpp"
+        "__string": "cpp",
+        "__node_handle": "cpp"
     }
 }

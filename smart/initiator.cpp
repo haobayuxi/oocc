@@ -357,6 +357,7 @@ std::function<void()> Initiator::get_poll_task(int &running_tasks) {
     while (running_tasks) {
       int total_ack = 0;
       if (shared_cq) {
+        SDS_INFO("poll once shared");
         int rc = poll_once(0, true);
         if (__glibc_unlikely(rc < 0)) {
           exit(EXIT_FAILURE);
@@ -364,6 +365,7 @@ std::function<void()> Initiator::get_poll_task(int &running_tasks) {
         total_ack += rc;
       } else {
         for (int id = 0; id <= manager_.max_node_id(); ++id) {
+          SDS_INFO("poll once %d", id);
           int rc = poll_once(id, true);
           if (__glibc_unlikely(rc < 0)) {
             exit(EXIT_FAILURE);
@@ -381,14 +383,12 @@ void Initiator::run_tasks() {
   bool shared_cq = manager_.config().shared_cq;
   while (!task_pool.empty()) {
     if (shared_cq) {
-      SDS_INFO("poll once shared");
       int rc = poll_once(0, true);
       if (__glibc_unlikely(rc < 0)) {
         exit(EXIT_FAILURE);
       }
     } else {
       for (int id = 0; id <= manager_.max_node_id(); ++id) {
-        SDS_INFO("poll once");
         int rc = poll_once(id, true);
         if (__glibc_unlikely(rc < 0)) {
           exit(EXIT_FAILURE);
