@@ -321,6 +321,7 @@ bool DTX::CheckDirectRO(std::vector<DirectRead> &pending_direct_ro,
   for (auto &res : pending_direct_ro) {
     auto *it = res.item->item_ptr.get();
     auto *fetched_item = (DataItem *)res.buf;
+    SDS_INFO("check direct ro key=%ld", fetched_item->key);
     if (fetched_item->lock > STATE_READ_LOCKED) {
       return false;
     }
