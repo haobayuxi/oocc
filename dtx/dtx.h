@@ -91,7 +91,7 @@ struct CommitWrite {
 class DTX {
  public:
   void TxBegin(tx_id_t txid) {
-    context->BeginTask();
+    // context->BeginTask();
     Clean();
     is_ro_tx = true;
     tx_id = txid;
@@ -158,7 +158,7 @@ class DTX {
       // }
       if (read_write_set.size() != 0) {
         if (CoalescentCommit()) {
-          context->EndTask();
+          // context->EndTask();
           return true;
         } else {
           goto ABORT;
@@ -170,7 +170,7 @@ class DTX {
       }
       if (read_write_set.size() != 0) {
         if (CoalescentCommit()) {
-          context->EndTask();
+          // context->EndTask();
           return true;
         } else {
           goto ABORT;
@@ -178,7 +178,7 @@ class DTX {
       }
     }
 
-    context->EndTask();
+    // context->EndTask();
     return true;
   ABORT:
     Abort();
@@ -189,8 +189,8 @@ class DTX {
   void TxAbortReadOnly() {
     assert(read_write_set.empty());
     read_only_set.clear();
-    context->RetryTask();
-    context->EndTask();
+    // context->RetryTask();
+    // context->EndTask();
   }
 
   void TxAbortReadWrite() { Abort(); }
