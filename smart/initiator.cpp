@@ -469,7 +469,8 @@ int Initiator::poll_once(node_t mem_node_id, bool notify) {
         auto task_id = TASK_ID(wr_id);
         state.per_coro_waiting[task_id] -= 1;
 
-        SDS_INFO("waiting to notify = %d", state.per_coro_waiting[task_id]);
+        SDS_INFO("waiting to notify = %d, taskid = %d",
+                 state.per_coro_waiting[task_id], task_id);
         if (state.per_coro_waiting[task_id] == 0) {
           NotifyTask(task_id);
         }
