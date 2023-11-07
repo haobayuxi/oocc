@@ -24,9 +24,9 @@ class AddrCache {
   ALWAYS_INLINE
   offset_t Search(node_id_t remote_node_id, table_id_t table_id,
                   itemkey_t key) {
-    offset_t offset = 0;
+    uint64_t offset = 0;
     if (addr_map[remote_node_id][table_id].find(key, &offset)) {
-      return offset;
+      return (offset_t)offset;
     } else {
       return NOT_FOUND;
     }
@@ -59,5 +59,5 @@ class AddrCache {
   //     offset_t>>> addr_map;
 
   // std::unordered_map<itemkey_t, offset_t> addr_map[1][20];
-  libcuckoo::cuckoohash_map<int, offset_t> addr_map[1][20];
+  libcuckoo::cuckoohash_map<int, uint64_t> addr_map[1][20];
 };
