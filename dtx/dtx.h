@@ -290,6 +290,8 @@ class DTX {
  public:
   tx_id_t tx_id;
 
+  AddrCache *addr_cache;
+
  private:
   t_id_t t_id;
   int txn_sys;
@@ -299,7 +301,6 @@ class DTX {
   uint64_t DrTM_lease;
 
   DTXContext *context;
-  AddrCache *addr_cache;
 
   bool is_ro_tx;
   std::vector<DataSetItem> read_only_set;

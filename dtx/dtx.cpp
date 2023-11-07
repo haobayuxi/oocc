@@ -28,8 +28,8 @@ bool DTX::ExeRO() {
     context->Sync();
     if (!CheckNextHashRO(pending_next_hash_ro)) return false;
   }
-  //   auto end_time = get_clock_sys_time_us();
-  //   SDS_INFO("read time = %ld, lease = %ld", end_time - start_time, lease);
+  auto end_time = get_clock_sys_time_us();
+  SDS_INFO("read time = %ld, lease = %ld", end_time - start_time, lease);
 
   return true;
 }
