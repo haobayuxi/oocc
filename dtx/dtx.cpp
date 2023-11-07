@@ -17,10 +17,11 @@ bool DTX::ExeRO() {
     start_time = get_clock_sys_time_us();
   }
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
+  SDS_INFO("start sync");
   context->Sync();
-  //   auto end_time = get_clock_sys_time_us();
+  auto end_time = get_clock_sys_time_us();
   // sleep(1);
-  //   SDS_INFO("get ro time = %ld", end_time - start_time);
+  SDS_INFO("get ro time = %ld", end_time - start_time);
   std::list<HashRead> pending_next_hash_ro;
   if (!CheckDirectRO(pending_direct_ro, pending_next_hash_ro)) return false;
   if (!CheckHashRO(pending_hash_ro, pending_next_hash_ro)) return false;
