@@ -25,7 +25,7 @@ class AddrCache {
   offset_t Search(node_id_t remote_node_id, table_id_t table_id,
                   itemkey_t key) {
     uint64_t offset = 0;
-    if (addr_map[remote_node_id][table_id].find(key, &offset)) {
+    if (addr_map[remote_node_id][table_id].find(key, offset)) {
       return (offset_t)offset;
     } else {
       return NOT_FOUND;
