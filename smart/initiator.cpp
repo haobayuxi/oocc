@@ -401,6 +401,7 @@ void Initiator::run_tasks() {
 
 int Initiator::sync() {
   if (post_request()) {
+    SDS_INFO("post reqeust -1");
     return -1;
   }
   // auto &post_req = tl.post_req_snapshot[GetTaskID()];
