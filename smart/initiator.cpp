@@ -397,6 +397,9 @@ void Initiator::run_tasks() {
 }
 
 int Initiator::sync() {
+  if (post_request()) {
+    return -1;
+  }
   // auto &post_req = tl.post_req_snapshot[GetTaskID()];
   //   //   post_req.resize(state.post_req.size());
   //   auto size = state.post_req.size();
@@ -412,9 +415,7 @@ int Initiator::sync() {
     auto &state = tl.qp_state;
 
     auto req = state.post_req[0];
-    if (post_request()) {
-      return -1;
-    }
+
     while (state.ack_req[0] < req) {
       if (poll_once(0) < 0) {
         return -1;
