@@ -343,6 +343,7 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
     for (auto &item : local_hash_node->data_items) {
       SDS_INFO("read =%ld,key=%ld, tableid =%d, tid=%ld", it->key, item.key,
                item.table_id, tx_id);
+      assert(item.table_id == 1);
       if (item.key == it->key && item.table_id == it->table_id) {
         *it = item;
         addr_cache->Insert(res.node_id, it->table_id, it->key,
