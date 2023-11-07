@@ -44,6 +44,7 @@ void setup(Target &target) {
              hash_meta[i].bucket_num, hash_meta[i].node_size);
     target.set_root_entry(hash_table->GetTableID(),
                           target.rel_ptr(&hash_meta[i]).raw);
+    SDS_INFO("raw=%ld", target.rel_ptr(&hash_meta[i]).raw);
     ++i;
   }
 
