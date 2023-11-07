@@ -287,8 +287,10 @@ class DTX {
     return context->GetNextLogOffset(node_id, log_size);
   }
 
- private:
+ public:
   tx_id_t tx_id;
+
+ private:
   t_id_t t_id;
   int txn_sys;
   int lease;
