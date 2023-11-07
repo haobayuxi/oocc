@@ -166,6 +166,9 @@ class DTXContext {
 
   void RetryTask() { tl_data_[GetThreadID()].backoff.retry_task(); }
 
+ public:
+  AddrCache addr_cache;
+
  private:
   struct ThreadLocal {
     AddrCache addr_cache;

@@ -8,6 +8,7 @@ DTX::DTX(DTXContext *context, int _txn_sys, int _lease)
   addr_cache = context->GetAddrCache();
   t_id = GetThreadID();
   lease = _lease;
+  addr_cache = &context->addr_cache;
 }
 
 bool DTX::ExeRO() {
@@ -19,7 +20,7 @@ bool DTX::ExeRO() {
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
   context->Sync();
   // auto end_time = get_clock_sys_time_us();
-  sleep(1);
+  // sleep(1);
   // SDS_INFO("get ro time = %ld", end_time - start_time);
   std::list<HashRead> pending_next_hash_ro;
   if (!CheckDirectRO(pending_direct_ro, pending_next_hash_ro)) return false;
@@ -29,7 +30,7 @@ bool DTX::ExeRO() {
     if (!CheckNextHashRO(pending_next_hash_ro)) return false;
   }
   auto end_time = get_clock_sys_time_us();
-  SDS_INFO("read time = %ld, lease = %ld", end_time - start_time, lease);
+  // SDS_INFO("read time = %ld, lease = %ld", end_time - start_time, lease);
 
   return true;
 }
