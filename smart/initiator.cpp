@@ -407,14 +407,17 @@ int Initiator::sync() {
   //     post_req[id] = state.post_req[id];
   //   }
   //   for (int id = 0; id < size; ++id) {
-  //     while (state.ack_req[id] < post_req[id]) {
+  //
   if (TaskPool::IsEnabled()) {
     WaitTask();
   } else {
-    if (poll_once(0) < 0) {
-      return -1;
+    while (true) {
+      if (poll_once(0) < 0) {
+        return -1;
+      }
     }
   }
+
   //     }
   //   }
   return 0;
