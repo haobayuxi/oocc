@@ -190,7 +190,9 @@ bool DTX::IssueReadOnly(std::vector<DirectRead> &pending_direct_ro,
           .node_id = node_id, .item = &item, .buf = buf, .meta = meta});
       context->read(buf, GlobalAddress(node_id, node_off), sizeof(HashNode));
       context->PostRequest();
+      SDS_INFO("post request success");
     }
+    SDS_INFO("post request key = %ld", it->key);
   }
   return true;
 }
