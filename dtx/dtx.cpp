@@ -19,9 +19,7 @@ bool DTX::ExeRO() {
   }
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
   context->Sync();
-  // auto end_time = get_clock_sys_time_us();
-  // sleep(1);
-  // SDS_INFO("get ro time = %ld", end_time - start_time);
+
   std::list<HashRead> pending_next_hash_ro;
   if (!CheckDirectRO(pending_direct_ro, pending_next_hash_ro)) return false;
   if (!CheckHashRO(pending_hash_ro, pending_next_hash_ro)) return false;
@@ -91,8 +89,6 @@ bool DTX::Validate() {
         }
       }
       if (my_version != *((version_t *)re.version_buf)) {
-        SDS_INFO("validate my version = %ld, read version= %ld", my_version,
-                 *((version_t *)re.version_buf));
         return false;
       }
     } else {
@@ -341,9 +337,9 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
     bool find = false;
 
     for (auto &item : local_hash_node->data_items) {
-      SDS_INFO("read =%ld,key=%ld, tableid =%d, tid=%ld", it->key, item.key,
-               item.table_id, tx_id);
-      assert(item.table_id == 1);
+      // SDS_INFO("read =%ld,key=%ld, tableid =%d, tid=%ld", it->key, item.key,
+      //          item.table_id, tx_id);
+      // assert(item.table_id == 1);
       if (item.key == it->key && item.table_id == it->table_id) {
         *it = item;
         addr_cache->Insert(res.node_id, it->table_id, it->key,
@@ -362,12 +358,11 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
         return false;
       }
     } else {
-      assert(false);
+      // assert(false);
       if (local_hash_node->next == nullptr) return false;
       auto node_off = (uint64_t)local_hash_node->next - res.meta.data_ptr +
                       res.meta.base_off;
-      // SDS_INFO("next hash node off = %ld, tid = %d", node_off,
-      // GetThreadID());
+
       if (node_off <= 0) {
         return false;
       }
