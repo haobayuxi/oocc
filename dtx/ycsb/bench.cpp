@@ -46,11 +46,11 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
   for (int i = 0; i < data_item_size; i++) {
     micro_key_t micro_key;
     if (is_skewed) {
-      micro_key.micro_id = ycsb_client->next();
+      micro_key.item_key = ycsb_client->next();
     } else {
-      micro_key.micro_id = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM - 1));
-      // micro_key.micro_id = tx_id % (TOTAL_KEYS_NUM - 1);
-      // micro_key.micro_id = 100;
+      micro_key.item_key = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM - 1));
+      // micro_key.item_key = tx_id % (TOTAL_KEYS_NUM - 1);
+      // micro_key.item_key = 100;
     }
 
     DataItemPtr micro_obj =
@@ -58,7 +58,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
     if (read_only || i % 2 == 1) {
       dtx->AddToReadOnlySet(micro_obj);
 
-      // SDS_INFO("txn read key = %ld", micro_key.micro_id);
+      // SDS_INFO("txn read key = %ld", micro_key.item_key);
     } else {
       dtx->AddToReadWriteSet(micro_obj);
     }

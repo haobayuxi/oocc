@@ -18,11 +18,9 @@ static inline unsigned long GetCPUCycle() {
 
 const int MICRO_TABLE_ID = 1;
 
-union micro_key_t {
-  uint64_t micro_id;
+struct micro_key_t {
+  // uint64_t micro_id;
   uint64_t item_key;
-
-  micro_key_t() { item_key = 0; }
 };
 
 static_assert(sizeof(micro_key_t) == sizeof(uint64_t), "");
@@ -68,7 +66,7 @@ class YCSB {
   void PopulateTable(MemStoreReserveParam *mem_store_reserve_param) {
     for (int i = 0; i < TOTAL_KEYS_NUM; i++) {
       micro_key_t micro_key;
-      micro_key.micro_id = (uint64_t)i;
+      micro_key.item_key = (uint64_t)i;
 
       micro_val_t micro_val;
       micro_val.magic = micro_magic + i;
