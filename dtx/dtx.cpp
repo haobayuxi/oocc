@@ -363,8 +363,7 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
       if (local_hash_node->next == nullptr) return false;
       auto node_off = (uint64_t)local_hash_node->next - res.meta.data_ptr +
                       res.meta.base_off;
-      // SDS_INFO("next hash node off = %ld, tid = %d", node_off,
-      // GetThreadID());
+      SDS_INFO("next hash node off = %ld, tid = %d", node_off, GetThreadID());
       pending_next_hash_ro.emplace_back(HashRead{.node_id = res.node_id,
                                                  .item = res.item,
                                                  .buf = res.buf,
