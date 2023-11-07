@@ -155,7 +155,6 @@ class TaskPool {
   void wait() {
     auto task = active;
     if (task->id != 0) {
-      SDS_INFO("taskid=%d", task->id);
       task->blocked = 1;
       enqueue(&blocking, task);
       nr_blocking++;

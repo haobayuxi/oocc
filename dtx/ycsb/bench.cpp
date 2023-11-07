@@ -146,7 +146,7 @@ void execute_thread(int id, DTXContext *context, double theta) {
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
   running_tasks = coroutines;
-
+  SDS_INFO("is enable: %d", TaskPool::IsEnable());
   pthread_barrier_wait(&barrier);
   task_pool.spawn(context->GetPollTask(running_tasks));
   for (int i = 0; i < coroutines; ++i) {
