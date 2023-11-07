@@ -17,17 +17,23 @@ class AddrCache {
   void Insert(node_id_t remote_node_id, table_id_t table_id, itemkey_t key,
               offset_t remote_offset) {
     // The node and table both exist, then insert/update the <key,offset> pair
-    addr_map[remote_node_id][table_id].insert(
-        std::make_pair(key, remote_offset));
+    addr_map[remote_node_id][table_id].insert(key, remote_offset);
   }
 
   // We know which node to read, but we do not konw whether it is cached before
+  ALWAYS_INLINE
   offset_t Search(node_id_t remote_node_id, table_id_t table_id,
                   itemkey_t key) {
-    auto offset_search = addr_map[remote_node_id][table_id].find(key);
-    return offset_search == addr_map[remote_node_id][table_id].end()
-               ? NOT_FOUND
-               : offset_search->second;
+    offset_t offset = 0;
+    if (addr_map[remote_node_id][table_id].find(key, &offset)) {
+      return offset;
+    } else {
+      return NOT_FOUND;
+    }
+    // auto offset_search = addr_map[remote_node_id][table_id].find(key);
+    // return offset_search == addr_map[remote_node_id][table_id].end()
+    //            ? NOT_FOUND
+    //            : offset_search->second;
   }
 
   // size_t TotalAddrSize() {
@@ -52,5 +58,6 @@ class AddrCache {
   //     std::unordered_map<table_id_t, std::unordered_map<itemkey_t,
   //     offset_t>>> addr_map;
 
-  std::unordered_map<itemkey_t, offset_t> addr_map[1][20];
+  // std::unordered_map<itemkey_t, offset_t> addr_map[1][20];
+  libcuckoo::cuckoohash_map<int, offset_t> addr_map[1][20];
 };
