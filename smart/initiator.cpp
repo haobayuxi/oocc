@@ -337,6 +337,7 @@ int Initiator::post_request() {
   }
   req_buf.wr_list[req_buf.size - 1].wr_id =
       MAKE_WR_ID(req_buf.mem_node_id, wr_size);
+  SDS_INFO("thread id = %d, task id = %d", GetThreadID(), GetTaskID());
   req_buf.wr_list[req_buf.size - 1].send_flags |= IBV_SEND_SIGNALED;
   int qp_idx = GetThreadID() % manager_.get_qp_size(req_buf.mem_node_id);
   if (manager_.post_send(req_buf.mem_node_id, qp_idx, req_buf.wr_list)) {
