@@ -322,7 +322,7 @@ bool DTX::CheckDirectRO(std::vector<DirectRead> &pending_direct_ro,
   for (auto &res : pending_direct_ro) {
     auto *it = res.item->item_ptr.get();
     auto *fetched_item = (DataItem *)res.buf;
-    SDS_INFO("check direct ro key=%ld", fetched_item->key);
+    // SDS_INFO("check direct ro key=%ld", fetched_item->key);
     if (fetched_item->lock > STATE_READ_LOCKED) {
       return false;
     }
@@ -338,9 +338,9 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
     bool find = false;
 
     for (auto &item : local_hash_node->data_items) {
-      // SDS_INFO("read =%ld,key=%ld, tableid =%d, tid=%ld", it->key, item.key,
-      //          item.table_id, tx_id);
-      // assert(item.table_id == 1);
+      SDS_INFO("read =%ld,key=%ld, tableid =%d, tid=%ld", it->key, item.key,
+               item.table_id, tx_id);
+      assert(item.table_id == 1);
       if (item.key == it->key && item.table_id == it->table_id) {
         *it = item;
         addr_cache->Insert(res.node_id, it->table_id, it->key,
@@ -359,7 +359,7 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
         return false;
       }
     } else {
-      // assert(false);
+      assert(false);
       if (local_hash_node->next == nullptr) return false;
       auto node_off = (uint64_t)local_hash_node->next - res.meta.data_ptr +
                       res.meta.base_off;

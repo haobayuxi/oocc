@@ -359,7 +359,7 @@ std::function<void()> Initiator::get_poll_task(int &running_tasks) {
     while (running_tasks) {
       int total_ack = 0;
       if (shared_cq) {
-        SDS_INFO("poll once shared");
+        // SDS_INFO("poll once shared");
         int rc = poll_once(0, true);
         if (__glibc_unlikely(rc < 0)) {
           exit(EXIT_FAILURE);
@@ -367,7 +367,6 @@ std::function<void()> Initiator::get_poll_task(int &running_tasks) {
         total_ack += rc;
       } else {
         for (int id = 0; id <= manager_.max_node_id(); ++id) {
-          SDS_INFO("poll once %d", id);
           int rc = poll_once(id, true);
           if (__glibc_unlikely(rc < 0)) {
             exit(EXIT_FAILURE);
@@ -403,7 +402,7 @@ void Initiator::run_tasks() {
 
 int Initiator::sync() {
   if (post_request()) {
-    SDS_INFO("post reqeust -1");
+    // SDS_INFO("post reqeust -1");
     return -1;
   }
   // auto &post_req = tl.post_req_snapshot[GetTaskID()];
@@ -421,7 +420,7 @@ int Initiator::sync() {
     auto &state = tl.qp_state;
 
     auto req = state.post_req[0];
-    SDS_INFO("req = %d, ack=%d", req, state.ack_req[0]);
+    // SDS_INFO("req = %d, ack=%d", req, state.ack_req[0]);
     while (state.ack_req[0] < req) {
       if (poll_once(0) < 0) {
         return -1;
