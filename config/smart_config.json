@@ -17,7 +17,7 @@
     "shared_uuar": 96,
     "shared_cq": true
   },
-  "use_work_req_throt": true,
+  "use_work_req_throt": false,
   "work_req_throt": {
     "initial_credit": 4,
     "max_credit": 12,
