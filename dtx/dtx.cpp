@@ -361,6 +361,7 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
         return false;
       }
     } else {
+      assert(false);
       if (local_hash_node->next == nullptr) return false;
       auto node_off = (uint64_t)local_hash_node->next - res.meta.data_ptr +
                       res.meta.base_off;
