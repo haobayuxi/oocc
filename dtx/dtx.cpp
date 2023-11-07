@@ -17,7 +17,6 @@ bool DTX::ExeRO() {
     start_time = get_clock_sys_time_us();
   }
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
-  // SDS_INFO("start sync");
   context->Sync();
   auto end_time = get_clock_sys_time_us();
   // sleep(1);
@@ -174,6 +173,8 @@ bool DTX::IssueReadOnly(std::vector<DirectRead> &pending_direct_ro,
     node_id_t node_id = GetPrimaryNodeID(it->table_id);
     item.read_which_node = node_id;
     auto offset = addr_cache->Search(node_id, it->table_id, it->key);
+    // SDS_INFO("search key = %ld,offset = %ld, tid = ", it->key, offset,
+    //          GetThreadID());
     if (offset != NOT_FOUND) {
       it->remote_offset = offset;
       char *buf = AllocLocalBuffer(DataItemSize);
@@ -185,6 +186,8 @@ bool DTX::IssueReadOnly(std::vector<DirectRead> &pending_direct_ro,
       HashMeta meta = GetPrimaryHashMetaWithTableID(it->table_id);
       uint64_t idx = MurmurHash64A(it->key, 0xdeadbeef) % meta.bucket_num;
       offset_t node_off = idx * meta.node_size + meta.base_off;
+      SDS_INFO("buket_num = %ld, idx = %ld, tid=%ld", meta.bucket_num, idx,
+               GetThreadID());
       char *buf = AllocLocalBuffer(sizeof(HashNode));
       pending_hash_ro.emplace_back(HashRead{
           .node_id = node_id, .item = &item, .buf = buf, .meta = meta});
