@@ -132,25 +132,21 @@ class DTXContext {
   void LoadMetadata() {
     SDS_INFO("load meta");
     for (int node_id = 0; node_id < remote_nodes_; ++node_id) {
-      SDS_INFO("load meta at node %d", node_id);
       uint64_t offset;
       int rc = node_.get_root_entry(node_id, 255, offset);
       assert(!rc);
       log_base_[node_id] = offset;
       rc = node_.get_root_entry(node_id, 0, offset);
       assert(!rc);
-      SDS_INFO("offset at  %ld", offset);
       table_id_t nr_tables = offset;
       HashMeta *hash_meta = (HashMeta *)node_.alloc_cache(sizeof(HashMeta));
       assert(hash_meta);
       for (table_id_t table_id = 1; table_id <= nr_tables; ++table_id) {
         rc = node_.get_root_entry(node_id, table_id, offset);
-        SDS_INFO("offset at  %ld", offset);
         assert(!rc);
         rc = node_.read(hash_meta, GlobalAddress(node_id, offset),
                         sizeof(HashMeta), Initiator::Option::Sync);
         assert(!rc);
-        sleep(1);
         SDS_INFO("%ld: %lx %ld %ld", hash_meta->table_id, hash_meta->base_off,
                  hash_meta->bucket_num, hash_meta->node_size);
         if (node_id == table_id % remote_nodes_) {
