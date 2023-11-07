@@ -414,12 +414,11 @@ int Initiator::sync() {
   if (TaskPool::IsEnabled()) {
     WaitTask();
   } else {
-    SDS_INFO("sync");
     auto &tl = tl_data_[GetThreadID()];
     auto &state = tl.qp_state;
 
     auto req = state.post_req[0];
-
+    SDS_INFO("req = %d, ack=%d", req, state.ack_req[0]);
     while (state.ack_req[0] < req) {
       if (poll_once(0) < 0) {
         return -1;
