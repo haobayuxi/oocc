@@ -341,8 +341,8 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
     bool find = false;
 
     for (auto &item : local_hash_node->data_items) {
-      // SDS_INFO("read =%d,key=%d, tableid =%d", it->key, item.key,
-      //          item.table_id);
+      SDS_INFO("read =%d,key=%d, tableid =%d", it->key, item.key,
+               item.table_id);
       if (item.key == it->key && item.table_id == it->table_id) {
         *it = item;
         addr_cache->Insert(res.node_id, it->table_id, it->key,
@@ -350,7 +350,8 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
         res.item->is_fetched = true;
         find = true;
         break;
-      } else if (item.key == 0) {
+      }
+      if (!item.valid) {
         break;
       }
     }
