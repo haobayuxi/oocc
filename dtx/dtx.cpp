@@ -340,7 +340,7 @@ bool DTX::CheckHashRO(std::vector<HashRead> &pending_hash_ro,
     bool find = false;
 
     for (auto &item : local_hash_node->data_items) {
-      SYS_INFO("is valid=%d,key=%d, tableid =%d", item.valid, item.key,
+      SDS_INFO("is valid=%d,key=%d, tableid =%d", item.valid, item.key,
                item.table_id);
       if (item.valid && item.key == it->key && item.table_id == it->table_id) {
         *it = item;
