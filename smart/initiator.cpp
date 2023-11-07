@@ -414,6 +414,7 @@ int Initiator::sync() {
   if (TaskPool::IsEnabled()) {
     WaitTask();
   } else {
+    SDS_INFO("sync");
     auto &tl = tl_data_[GetThreadID()];
     auto &state = tl.qp_state;
 
