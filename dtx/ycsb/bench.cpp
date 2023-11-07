@@ -143,6 +143,8 @@ void execute_thread(int id, DTXContext *context, double theta) {
          id;
   ycsb_client = new YCSB(theta, id);
   WarmUp(context);
+  SDS_INFO("warm done");
+  return;
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
   running_tasks = coroutines;
