@@ -58,7 +58,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx) {
     if (read_only || i % 2 == 1) {
       dtx->AddToReadOnlySet(micro_obj);
 
-      SDS_INFO("txn read key = %ld", micro_key.item_key);
+      // SDS_INFO("txn read key = %ld", micro_key.item_key);
     } else {
       dtx->AddToReadWriteSet(micro_obj);
     }
