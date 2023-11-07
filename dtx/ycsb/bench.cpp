@@ -142,7 +142,6 @@ void execute_thread(int id, DTXContext *context, double theta) {
              kMaxThreads +
          id;
   ycsb_client = new YCSB(theta, id);
-  SDS_INFO("warm up");
   WarmUp(context);
   TaskPool::Enable();
   auto &task_pool = TaskPool::Get();
