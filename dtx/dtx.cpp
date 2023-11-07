@@ -174,8 +174,8 @@ bool DTX::IssueReadOnly(std::vector<DirectRead> &pending_direct_ro,
     node_id_t node_id = GetPrimaryNodeID(it->table_id);
     item.read_which_node = node_id;
     auto offset = addr_cache->Search(node_id, it->table_id, it->key);
-    SDS_INFO("search key = %ld,offset = %ld, tid = %d", it->key, offset,
-             GetThreadID());
+    // SDS_INFO("search key = %ld,offset = %ld, tid = %d", it->key, offset,
+    //          GetThreadID());
     if (offset != NOT_FOUND) {
       it->remote_offset = offset;
       char *buf = AllocLocalBuffer(DataItemSize);
