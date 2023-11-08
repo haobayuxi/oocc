@@ -76,7 +76,7 @@ void WarmUp(DTXContext *context) {
   DTX *dtx = new DTX(context);
   bool tx_committed = false;
   for (int i = 0; i < 50000; ++i) {
-    uint64_t iter = ++tx_id_generator;
+    uint64_t iter = ++tx_id_local;
     TxYCSB(iter, dtx);
   }
   delete dtx;
