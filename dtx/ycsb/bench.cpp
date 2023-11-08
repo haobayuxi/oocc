@@ -32,6 +32,7 @@ thread_local size_t ATTEMPTED_NUM;
 thread_local uint64_t seed;
 thread_local YCSB *ycsb_client;
 thread_local bool *workgen_arr;
+thread_local uint64_t tx_id_local = 0;
 
 thread_local uint64_t rdma_cnt;
 std::atomic<uint64_t> rdma_cnt_sum(0);
@@ -102,14 +103,15 @@ void RunTx(DTXContext *context) {
   int timer_idx = GetThreadID() * coroutines + GetTaskID();
   // Running transactions
   while (true) {
-    uint64_t iter = ++tx_id_generator;  // Global atomic transaction id
+    uint64_t iter = ++tx_id_local;
     attempt_tx++;
     clock_gettime(CLOCK_REALTIME, &tx_start_time);
-#ifdef ABORT_DISCARD
+    // #ifdef ABORT_DISCARD
 
-#else
+    // #else
+    //     tx_committed = TxYCSB(iter, dtx);
+    // #endif
     tx_committed = TxYCSB(iter, dtx);
-#endif
     // Stat after one transaction finishes
     if (tx_committed) {
       clock_gettime(CLOCK_REALTIME, &tx_end_time);
@@ -120,7 +122,7 @@ void RunTx(DTXContext *context) {
       timer[timer_idx] = tx_usec;
       timer_idx += threads * coroutines;
       commit_tx++;
-      // IdleExecution();
+      IdleExecution();
     }
     // Stat after a million of transactions finish
     if (attempt_tx == ATTEMPTED_NUM) {
