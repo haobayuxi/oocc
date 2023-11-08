@@ -100,6 +100,7 @@ void RunTx(DTXContext *context) {
   bool tx_committed = false;
   uint64_t attempt_tx = 0;
   uint64_t commit_tx = 0;
+  tx_id_local = GetThreadID() << 50;
   int timer_idx = GetThreadID() * coroutines + GetTaskID();
   // Running transactions
   while (true) {
