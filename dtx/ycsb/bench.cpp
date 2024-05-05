@@ -55,10 +55,14 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx, bool read_only, uint64_t *att_read_only) {
       micro_key.item_key = (itemkey_t)(FastRand(&seed) % (TOTAL_KEYS_NUM - 1));
       // micro_key.item_key = tx_id % (TOTAL_KEYS_NUM - 1);
     }
-
-    // SDS_INFO("txn read key = %ld", micro_key.item_key);
-    DataItemPtr micro_obj =
-        std::make_shared<DataItem>(MICRO_TABLE_ID, micro_key.item_key);
+    DataItemPtr micro_obj;
+    if (micro_key % 2 == 1) {
+      micro_obj =
+          std::make_shared<DataItem>(MICRO_TABLE_ID1, micro_key.item_key);
+    } else {
+      micro_obj =
+          std::make_shared<DataItem>(MICRO_TABLE_ID2, micro_key.item_key);
+    }
     if (read_only) {
       dtx->AddToReadOnlySet(micro_obj);
 
@@ -278,27 +282,26 @@ void report(double elapsed_time, JsonConfig &config) {
       1.0 * rdma_cnt_sum.load() / attempts.load(),
       rdma_cnt_sum.load() / elapsed_time,
       1.0 - (commits_read_only.load() * 1.0 / attempts_read_only.load()));
-  std::string dump_file_path = config.get("dump_file_path").get_str();
-  if (getenv("DUMP_FILE_PATH")) {
-    dump_file_path = getenv("DUMP_FILE_PATH");
-  }
-  if (dump_file_path.empty()) {
-    return;
-  }
-  FILE *fout = fopen(dump_file_path.c_str(), "a+");
-  if (!fout) {
-    SDS_PERROR("fopen");
-    return;
-  }
-  fprintf(
-      fout, "%s, %ld, %ld, %.3lf, %.3lf, %.3lf, %.3lf, %.3lf, %.3lf, %.3lf\n",
-      dump_prefix.c_str(), threads, coroutines, attempts.load() / elapsed_time,
-      commits.load() / elapsed_time, timer[(int)(0.5 * commits.load())],
-      timer[(int)(0.99 * commits.load())],
-      1.0 - (commits.load() * 1.0 / attempts.load()),
-      1.0 * rdma_cnt_sum.load() / attempts.load(),
-      rdma_cnt_sum.load() / elapsed_time);
-  fclose(fout);
+  // std::string dump_file_path = config.get("dump_file_path").get_str();
+  // if (getenv("DUMP_FILE_PATH")) {
+  //   dump_file_path = getenv("DUMP_FILE_PATH");
+  // }
+  // if (dump_file_path.empty()) {
+  //   return;
+  // }
+  // FILE *fout = fopen(dump_file_path.c_str(), "a+");
+  // if (!fout) {
+  //   SDS_PERROR("fopen");
+  //   return;
+  // }
+  // fprintf(
+  //     fout, "%s, %ld, %ld, %.3lf, %.3lf, %.3lf, %.3lf, %.3lf, %.3lf,
+  //     %.3lf\n", dump_prefix.c_str(), threads, coroutines, attempts.load() /
+  //     elapsed_time, commits.load() / elapsed_time, timer[(int)(0.5 *
+  //     commits.load())], timer[(int)(0.99 * commits.load())], 1.0 -
+  //     (commits.load() * 1.0 / attempts.load()), 1.0 * rdma_cnt_sum.load() /
+  //     attempts.load(), rdma_cnt_sum.load() / elapsed_time);
+  // fclose(fout);
 }
 
 int main(int argc, char **argv) {
