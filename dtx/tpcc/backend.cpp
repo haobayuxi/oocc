@@ -1,3 +1,4 @@
+
 // Some contents of this file are derived from FORD
 // https://github.com/minghust/FORD
 
@@ -5,13 +6,13 @@
 #include "../memstore.h"
 #include "smart/target.h"
 #include "smart/thread.h"
-#include "tatp.h"
+#include "tpcc.h"
 #include "util/json_config.h"
 
 using namespace sds;
 
 void setup(Target &target) {
-  static_assert(MAX_ITEM_SIZE == 40, "");
+  static_assert(MAX_ITEM_SIZE == 664, "");
   uint64_t hash_buf_size = 4ull * 1024 * 1024 * 1024;
 
   char *hash_buffer = (char *)target.alloc_chunk(hash_buf_size / kChunkSize);
@@ -29,12 +30,13 @@ void setup(Target &target) {
   MemStoreReserveParam mem_store_reserve_param(hash_reserve_buffer, 0,
                                                hash_buffer + hash_buf_size);
   std::vector<HashStore *> all_tables;
-  auto tatp = new TATP();
-  tatp->LoadTable(&mem_store_alloc_param, &mem_store_reserve_param);
-  all_tables = tatp->GetHashStore();
+  auto tpcc = new TPCC(0);
+  tpcc->LoadTable(&mem_store_alloc_param, &mem_store_reserve_param);
+  all_tables = tpcc->GetHashStore();
   auto *hash_meta = (HashMeta *)target.alloc_chunk(
       (all_tables.size() * sizeof(HashMeta)) / kChunkSize + 1);
   int i = 0;
+  uint64_t t;
   for (auto &hash_table : all_tables) {
     new (&hash_meta[i])
         HashMeta(hash_table->GetTableID(), (uint64_t)hash_table->GetDataPtr(),
@@ -42,20 +44,25 @@ void setup(Target &target) {
                  hash_table->GetBaseOff());
     SDS_INFO("%ld: %lx %ld %ld", hash_meta[i].table_id, hash_meta[i].base_off,
              hash_meta[i].bucket_num, hash_meta[i].node_size);
+    // SDS_INFO("%ld", target.rel_ptr(&hash_meta[i]).raw);
     target.set_root_entry(hash_table->GetTableID(),
                           target.rel_ptr(&hash_meta[i]).raw);
+    // t = target.get_root_entry(hash_table->GetTableID());
+    // SDS_INFO("%ld", t);
     ++i;
   }
-
   target.set_root_entry(0, i);
+  t = target.get_root_entry(1);
+  // SDS_INFO("%ld", t);
 }
 
 int main(int argc, char **argv) {
   // WritePidFile();
   const char *path = ROOT_DIR "/config/backend.json";
-  if (argc == 2) {
-    path = argv[1];
-  }
+  // if (argc == 2) {
+  //   path = argv[1];
+  // }
+  // int id = atoi(argv[1]);
   JsonConfig config = JsonConfig::load_file(path);
   BindCore((int)config.get("nic_numa_node").get_int64());
   std::string dev_dax_path = config.get("dev_dax_path").get_str();
