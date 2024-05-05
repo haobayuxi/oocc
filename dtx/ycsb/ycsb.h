@@ -58,8 +58,10 @@ class YCSB {
 
   void LoadTable(MemStoreAllocParam *mem_store_alloc_param,
                  MemStoreReserveParam *mem_store_reserve_param) {
-    micro_table1 = new HashStore(MICRO_TABLE_ID, 200000, mem_store_alloc_param);
-    micro_table2 = new HashStore(MICRO_TABLE_ID, 200000, mem_store_alloc_param);
+    micro_table1 =
+        new HashStore(MICRO_TABLE_ID1, 200000, mem_store_alloc_param);
+    micro_table2 =
+        new HashStore(MICRO_TABLE_ID2, 200000, mem_store_alloc_param);
     PopulateTable(mem_store_reserve_param);
     table_ptrs.push_back(micro_table1);
     table_ptrs.push_back(micro_table2);
@@ -73,7 +75,7 @@ class YCSB {
       micro_val_t micro_val;
       micro_val.magic = micro_magic + i;
 
-      if (micro_key % 2 == 1) {
+      if (micro_key.item_key % 2 == 1) {
         DataItem item_to_be_inserted(MICRO_TABLE_ID1, sizeof(micro_val_t),
                                      micro_key.item_key, (uint8_t *)&micro_val);
         DataItem *inserted_item = micro_table1->LocalInsert(

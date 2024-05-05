@@ -56,7 +56,7 @@ bool TxYCSB(tx_id_t tx_id, DTX *dtx, bool read_only, uint64_t *att_read_only) {
       // micro_key.item_key = tx_id % (TOTAL_KEYS_NUM - 1);
     }
     DataItemPtr micro_obj;
-    if (micro_key % 2 == 1) {
+    if (micro_key.item_key % 2 == 1) {
       micro_obj =
           std::make_shared<DataItem>(MICRO_TABLE_ID1, micro_key.item_key);
     } else {
