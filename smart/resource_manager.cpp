@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 
+#define USE_MLX5DV
+#ifdef USE_MLX5DV
 #include <infiniband/mlx5dv.h>
+#endif
 #include <netdb.h>
 #include <unistd.h>
 #include <sys/poll.h>
@@ -50,6 +53,13 @@ namespace sds {
             SDS_PERROR("ibv_query_device");
             exit(EXIT_FAILURE);
         }
+
+        gid_idx_ = config_.gid_idx;
+        if (ibv_query_gid(ib_ctx_, ib_port_, gid_idx_, &gid_)) {
+            SDS_PERROR("ibv_query_gid");
+            exit(EXIT_FAILURE);
+        }
+
         assert(device_attr_.atomic_cap != IBV_ATOMIC_NONE);
         // SDS_INFO("atomic_cap %d max qp %d", device_attr_.atomic_cap, device_attr_.max_qp);
         ib_lid_ = port_attr_.lid;
@@ -262,7 +272,9 @@ namespace sds {
             return -1;
         }
         if (strlen(device_name) == 0) {
+#ifdef USE_MLX5DV
             assert(mlx5dv_is_supported(device_list[0]));
+#endif
             ib_ctx_ = ibv_open_device(device_list[0]);
             ibv_free_device_list(device_list);
             return ib_ctx_ ? 0 : -1;
@@ -270,7 +282,9 @@ namespace sds {
             for (int i = 0; i < num_devices; ++i) {
                 const char *target_device_name = ibv_get_device_name(device_list[i]);
                 if (target_device_name && strcmp(target_device_name, device_name) == 0) {
+#ifdef USE_MLX5DV
                     assert(mlx5dv_is_supported(device_list[i]));
+#endif
                     ib_ctx_ = ibv_open_device(device_list[i]);
                     if (ib_ctx_) {
                         ibv_free_device_list(device_list);
@@ -395,6 +409,7 @@ namespace sds {
         msg.peer_node_id = (int) (&node - node_list_);
         msg.lid = ib_lid_;
         msg.qp_size = node.qp_size;
+        memcpy(msg.gid, &gid_, GID_LEN);
 
         for (int i = 0; i < node.qp_size; ++i) {
             msg.qp_num[i] = node.qp_list[i]->qp->qp_num;
@@ -436,8 +451,10 @@ namespace sds {
             }
         }
 
+        union ibv_gid gid;
+        memcpy(&gid, msg.gid, GID_LEN);
         for (int i = 0; i < node.qp_size; ++i) {
-            if (enable_queue_pair(node.qp_list[i], msg.lid, msg.qp_num[i], i << 16)) {
+            if (enable_queue_pair(node.qp_list[i], msg.lid, msg.qp_num[i], i << 16, &gid)) {
                 return -1;
             }
         }
@@ -530,9 +547,7 @@ namespace sds {
             return -1;
         }
         auto entry = new QueuePair(qp);
-        // if (class_id != get_class_id(entry)) {
-        //     SDS_INFO("FUCK %d %d", class_id, get_class_id(entry));
-        // }
+        entry->class_id = class_id;
         // assert(class_id == get_class_id(entry));
         // class_id = get_class_id(entry);
         // if (class_id < 0) {
@@ -545,6 +560,7 @@ namespace sds {
     }
 
     int ResourceManager::get_class_id(QueuePair *qp) {
+#ifdef USE_MLX5DV
         mlx5dv_obj obj;
         mlx5dv_qp out;
         memset(&obj, 0, sizeof(mlx5dv_obj));
@@ -562,9 +578,14 @@ namespace sds {
             resource_.class_id_map[reg_addr] = next_id;
             return next_id;
         }
+#else
+        return qp->class_id;
+#endif
     }
 
-    int ResourceManager::enable_queue_pair(QueuePair *qp, uint16_t lid, uint32_t qp_num, uint32_t psn) {
+    int ResourceManager::enable_queue_pair(QueuePair *qp, uint16_t lid, uint32_t qp_num, uint32_t psn, union ibv_gid *gid) {
+        bool kNeverUseGid = getenv("SDS_NEVER_USE_GID");
+
         ibv_qp_attr attr;
         int flags;
 
@@ -599,7 +620,15 @@ namespace sds {
         if (qp->qp->qp_type == IBV_QPT_RC) {
             flags |= IBV_QP_AV | IBV_QP_DEST_QPN | IBV_QP_RQ_PSN |
                      IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
-            attr.ah_attr.is_global = 0;
+            if (gid && !kNeverUseGid) {
+                attr.ah_attr.is_global = 1;
+                attr.ah_attr.grh.hop_limit = 1;
+                attr.ah_attr.grh.dgid = *gid;
+                attr.ah_attr.grh.sgid_index = gid_idx_;
+            } else {
+                attr.ah_attr.is_global = 0;
+            }
+            // attr.ah_attr.is_global = 0;
             attr.ah_attr.dlid = lid;
             attr.ah_attr.port_num = ib_port_;
             attr.dest_qp_num = qp_num;
