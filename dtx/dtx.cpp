@@ -18,7 +18,6 @@ DTX::DTX(DTXContext *context, int _txn_sys, int _lease, bool _delayed,
 }
 
 bool DTX::ExeRO() {
-  SDS_INFO("exe ro");
   std::vector<DirectRead> pending_direct_ro;
   std::vector<HashRead> pending_hash_ro;
   IssueReadOnly(pending_direct_ro, pending_hash_ro);
@@ -29,12 +28,9 @@ bool DTX::ExeRO() {
   if (!CheckDirectRO(pending_direct_ro, pending_next_direct_ro,
                      pending_next_hash_ro))
     return false;
-  SDS_INFO("check direct ro");
   if (!CheckHashRO(pending_hash_ro, pending_invisible_ro, pending_next_hash_ro))
     return false;
-  SDS_INFO("check hash ro");
   while (!pending_next_hash_ro.empty()) {
-    SDS_INFO("pending next hash ro");
     context->Sync();
     // if (!CheckInvisibleRO(pending_invisible_ro)) return false;
     // if (!CheckNextDirectRO(pending_next_direct_ro)) return false;
