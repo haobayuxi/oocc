@@ -250,15 +250,15 @@ void synchronize_end(DTXContext *ctx) {
   }
 }
 
-void report_per_second() {
-  uint64_t last_committed = 0;
-  while (true) {
-    sleep(1);
-    uint64_t now = commits.load();
-    SDS_INFO("%.3lf", (now - last_committed) / 1000000.0);
-    last_committed = now;
-  }
-}
+// void report_per_second() {
+//   uint64_t last_committed = 0;
+//   while (true) {
+//     sleep(1);
+//     uint64_t now = commits.load();
+//     SDS_INFO("%.3lf", (now - last_committed) / 1000000.0);
+//     last_committed = now;
+//   }
+// }
 
 void report(double elapsed_time, JsonConfig &config) {
   assert(commits.load() <= kMaxTransactions);
