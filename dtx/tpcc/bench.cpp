@@ -957,7 +957,7 @@ void WarmUp(DTXContext* context) {
         printf("Unexpected transaction type %d\n", static_cast<int>(tx_type));
         abort();
     }
-    // SDS_INFO("warm up id=%ld, committed=%d", iter, tx_committed);
+    SDS_INFO("warm up id=%ld, committed=%d", iter, tx_committed);
   }
   delete dtx;
 }
@@ -1050,7 +1050,7 @@ void execute_thread(int id, DTXContext* context) {
   tpcc_client = new TPCC(seed);
   workgen_arr = tpcc_client->CreateWorkgenArray();
 
-  // SDS_INFO("warm up start %d", id);
+  SDS_INFO("warm up start %d", id);
   WarmUp(context);
   SDS_INFO("warm up done %d", id);
   TaskPool::Enable();
