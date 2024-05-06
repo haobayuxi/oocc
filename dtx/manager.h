@@ -185,7 +185,7 @@ class DTXContext {
     RDMABufferAllocator *buf_alloc;
     TaskThrottler backoff;
     uint64_t padding[16];
-    // ThreadLocal(): task_throttler(0.15, 0.25) {}
+    ThreadLocal() : task_throttler(0.15, 0.25) {}
   };
 
   std::unordered_map<table_id_t, HashMeta> primary_hash_metas;

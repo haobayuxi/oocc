@@ -800,6 +800,9 @@ bool TxOrderStatus(tx_id_t tx_id, DTX* dtx) {
     auto ol_obj = std::make_shared<DataItem>(
         (table_id_t)TPCCTableType::kOrderLineTable, order_line_key.item_key);
     dtx->AddToReadOnlySet(ol_obj);
+    if (i > 10) {
+      break;
+    }
   }
   if (!dtx->TxExe()) return false;
 
