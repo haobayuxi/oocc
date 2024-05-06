@@ -27,6 +27,7 @@
         "__mutex_base": "cpp",
         "__locale": "cpp",
         "__string": "cpp",
-        "__node_handle": "cpp"
+        "__node_handle": "cpp",
+        "cstdint": "cpp"
     }
 }
