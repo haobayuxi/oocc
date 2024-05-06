@@ -25,6 +25,8 @@ bool is_skewed;
 bool delayed;
 int lease;
 int txn_sys;
+double offset;
+
 thread_local uint64_t tx_id_local = 3;
 std::atomic<uint64_t> attempts(0);
 std::atomic<uint64_t> commits(0);
@@ -72,7 +74,7 @@ bool TxTAO(tx_id_t tx_id, DTX *dtx, uint64_t *att_read_only) {
 thread_local int running_tasks;
 
 void WarmUp(DTXContext *context) {
-  DTX *dtx = new DTX(context, txn_sys, lease, delayed);
+  DTX *dtx = new DTX(context, txn_sys, lease, delayed, offset);
   bool tx_committed = false;
   uint64_t x = 0;
   for (int i = 0; i < 50000; ++i) {
@@ -95,7 +97,7 @@ uint64_t g_idle_cycles = 0;
 // }
 
 void RunTx(DTXContext *context) {
-  DTX *dtx = new DTX(context, txn_sys, lease, delayed);
+  DTX *dtx = new DTX(context, txn_sys, lease, delayed, offset);
   // struct timespec tx_start_time, tx_end_time;
   bool tx_committed = false;
   uint64_t attempt_tx = 0;
@@ -281,6 +283,7 @@ int main(int argc, char **argv) {
   kMaxTransactions = config.get("nr_transactions").get_uint64();
   lease = config.get("lease").get_uint64();
   txn_sys = config.get("txn_sys").get_uint64();
+  offset = 0.0;
   if (txn_sys == DTX_SYS::OOCC) {
     SDS_INFO("running OOCC");
   } else if (txn_sys == DTX_SYS::OCC) {
