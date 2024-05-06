@@ -394,45 +394,45 @@ void Initiator::run_tasks() {
 }
 
 int Initiator::sync() {
-  //   auto &tl = tl_data_[GetThreadID()];
-  //   auto &state = tl.qp_state;
-  //   if (post_request()) {
-  //     return -1;
-  //   }
-  //   auto &post_req = tl.post_req_snapshot[GetTaskID()];
-  //   post_req.resize(state.post_req.size());
-  //   for (int id = 0; id < post_req.size(); ++id) {
-  //     post_req[id] = state.post_req[id];
-  //   }
-  //   for (int id = 0; id < post_req.size(); ++id) {
-  //     while (state.ack_req[id] < post_req[id]) {
-  //       if (TaskPool::IsEnabled()) {
-  //         WaitTask();
-  //       } else {
-  //         if (poll_once(id) < 0) {
-  //           return -1;
-  //         }
-  //       }
-  //     }
-  //   }
+  auto &tl = tl_data_[GetThreadID()];
+  auto &state = tl.qp_state;
   if (post_request()) {
     return -1;
   }
-  auto &tl = tl_data_[GetThreadID()];
-  auto &state = tl.qp_state;
-  if (TaskPool::IsEnabled()) {
-    if (state.per_coro_waiting[GetTaskID()] > 0) {
-      WaitTask();
-    }
-  } else {
-    auto req = state.post_req[0];
-
-    while (state.ack_req[0] < req) {
-      if (poll_once(0) < 0) {
-        return -1;
+  auto &post_req = tl.post_req_snapshot[GetTaskID()];
+  post_req.resize(state.post_req.size());
+  for (int id = 0; id < post_req.size(); ++id) {
+    post_req[id] = state.post_req[id];
+  }
+  for (int id = 0; id < post_req.size(); ++id) {
+    while (state.ack_req[id] < post_req[id]) {
+      if (TaskPool::IsEnabled()) {
+        WaitTask();
+      } else {
+        if (poll_once(id) < 0) {
+          return -1;
+        }
       }
     }
   }
+  //   if (post_request()) {
+  //     return -1;
+  //   }
+  //   auto &tl = tl_data_[GetThreadID()];
+  //   auto &state = tl.qp_state;
+  //   if (TaskPool::IsEnabled()) {
+  //     if (state.per_coro_waiting[GetTaskID()] > 0) {
+  //       WaitTask();
+  //     }
+  //   } else {
+  //     auto req = state.post_req[0];
+
+  //     while (state.ack_req[0] < req) {
+  //       if (poll_once(0) < 0) {
+  //         return -1;
+  //       }
+  //     }
+  //   }
   return 0;
 }
 
@@ -480,7 +480,9 @@ int Initiator::poll_once(node_t mem_node_id, bool notify) {
         auto task_id = TASK_ID(wr_id);
         // SDS_INFO("task id = %d, waiting= %d", task_id,
         //          state.per_coro_waiting[task_id]);
-        state.per_coro_waiting[task_id] -= size;
+        if (TaskPool::IsEnabled()) {
+          state.per_coro_waiting[task_id] -= size;
+        }
         if (state.per_coro_waiting[task_id] == 0) {
           NotifyTask(task_id);
         }

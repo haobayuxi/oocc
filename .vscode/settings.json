@@ -28,6 +28,7 @@
         "__locale": "cpp",
         "__string": "cpp",
         "__node_handle": "cpp",
-        "cstdint": "cpp"
+        "cstdint": "cpp",
+        "regex": "cpp"
     }
 }
