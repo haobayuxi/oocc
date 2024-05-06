@@ -938,30 +938,30 @@ void WarmUp(DTXContext* context) {
     // TxOrderStatus(iter, dtx);
     switch (tx_type) {
       case TPCCTxType::kNewOrder:
-        SDS_INFO("new order");
+        // SDS_INFO("new order");
         TxNewOrder(iter, dtx);
         break;
       case TPCCTxType::kDelivery:
-        SDS_INFO("delivery");
+        // SDS_INFO("delivery");
         TxDelivery(iter, dtx);
         break;
       case TPCCTxType::kOrderStatus:
-        SDS_INFO("order status");
+        // SDS_INFO("order status");
         TxOrderStatus(iter, dtx);
         break;
       case TPCCTxType::kPayment:
-        SDS_INFO("payment");
+        // SDS_INFO("payment");
         TxPayment(iter, dtx);
         break;
       case TPCCTxType::kStockLevel:
-        SDS_INFO("stock level");
+        // SDS_INFO("stock level");
         TxStockLevel(iter, dtx);
         break;
       default:
         printf("Unexpected transaction type %d\n", static_cast<int>(tx_type));
         abort();
     }
-    SDS_INFO("warm up id=%ld, committed=%d", iter, tx_committed);
+    // SDS_INFO("warm up id=%ld, committed=%d", iter, tx_committed);
   }
   delete dtx;
 }
