@@ -777,7 +777,6 @@ bool TxOrderStatus(tx_id_t tx_id, DTX* dtx) {
   dtx->AddToReadOnlySet(order_obj);
 
   if (!dtx->TxExe()) return false;
-  SDS_INFO("tx exe done");
   tpcc_customer_val_t* cust_val = (tpcc_customer_val_t*)cust_obj->value;
   // c_since never be 0
   if (cust_val->c_since == 0) {
